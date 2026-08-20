@@ -1,0 +1,6 @@
+@Bla.Api_HostAddress = http://localhost:5276
+
+GET {{Bla.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
