@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json.Serialization;
+using System.Threading.RateLimiting;
 using Bla.Api.Middleware;
 using Bla.Application;
 using Bla.Application.Abstractions;
@@ -46,6 +47,38 @@ builder.Services
 
 builder.Services.AddAuthorization();
 
+// Login attempts are throttled per client IP: BCrypt makes brute force
+// expensive, the rate limiter makes it pointless. Applied only to the
+// endpoints marked with [EnableRateLimiting("login")].
+var loginPermitLimit = builder.Configuration.GetValue("RateLimiting:Login:PermitLimit", 5);
+var loginWindowSeconds = builder.Configuration.GetValue("RateLimiting:Login:WindowSeconds", 60);
+
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.OnRejected = async (context, cancellationToken) =>
+    {
+        await context.HttpContext.Response.WriteAsJsonAsync(
+            new Microsoft.AspNetCore.Mvc.ProblemDetails
+            {
+                Status = StatusCodes.Status429TooManyRequests,
+                Title = "Too many attempts. Please try again shortly."
+            },
+            options: null,
+            contentType: "application/problem+json",
+            cancellationToken);
+    };
+    options.AddPolicy("login", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = loginPermitLimit,
+                Window = TimeSpan.FromSeconds(loginWindowSeconds),
+                QueueLimit = 0
+            }));
+});
+
 builder.Services.AddCors(options => options.AddPolicy("Frontend", policy => policy
     .WithOrigins(builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
         ?? ["http://localhost:5173"])
@@ -84,6 +117,8 @@ app.UseSwagger();
 app.UseSwaggerUI();
 
 app.UseCors("Frontend");
+
+app.UseRateLimiter();
 
 app.UseAuthentication();
 app.UseAuthorization();
