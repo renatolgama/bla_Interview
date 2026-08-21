@@ -60,7 +60,7 @@ public sealed class ExceptionHandlingMiddleware(
         }
 
         context.Response.StatusCode = status;
-        context.Response.ContentType = "application/problem+json";
-        await context.Response.WriteAsJsonAsync(problem);
+        await context.Response.WriteAsJsonAsync(
+            problem, options: null, contentType: "application/problem+json");
     }
 }

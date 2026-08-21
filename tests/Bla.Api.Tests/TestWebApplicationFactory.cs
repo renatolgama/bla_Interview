@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -22,6 +23,7 @@ public sealed class TestWebApplicationFactory : WebApplicationFactory<Program>
         builder.ConfigureServices(services =>
         {
             services.RemoveAll<DbContextOptions<BlaDbContext>>();
+            services.RemoveAll<IDbContextOptionsConfiguration<BlaDbContext>>();
             services.RemoveAll<BlaDbContext>();
             services.AddDbContext<BlaDbContext>(options => options.UseSqlite(_connection));
 
