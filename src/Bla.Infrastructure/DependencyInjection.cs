@@ -1,4 +1,5 @@
 using Bla.Application.Abstractions;
+using Bla.Infrastructure.Caching;
 using Bla.Infrastructure.Persistence;
 using Bla.Infrastructure.Persistence.Repositories;
 using Bla.Infrastructure.Security;
@@ -20,7 +21,15 @@ public static class DependencyInjection
         services.Configure<JwtSettings>(configuration.GetSection(JwtSettings.SectionName));
 
         services.AddScoped<IUserRepository, UserRepository>();
-        services.AddScoped<ITaskRepository, TaskRepository>();
+
+        // ITaskRepository resolves to the caching decorator wrapping the EF
+        // repository — swapping or removing the cache is a one-line change.
+        services.AddMemoryCache();
+        services.AddSingleton<TaskListCache>();
+        services.AddScoped<TaskRepository>();
+        services.AddScoped<ITaskRepository>(provider => new CachedTaskRepository(
+            provider.GetRequiredService<TaskRepository>(),
+            provider.GetRequiredService<TaskListCache>()));
 
         services.AddSingleton<IPasswordHasher, BcryptPasswordHasher>();
         services.AddSingleton<ITokenService, JwtTokenService>();
