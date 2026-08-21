@@ -220,6 +220,19 @@ junior: never merged unread.
 | Data-loading hook calling `setIsLoading(true)` synchronously at the top of the effect-invoked function | `react/set-state-in-effect` lint warning (cascading-render hazard) | Restructured: loading starts `true` and is flipped by the event that triggers each refetch; the remaining fetch-on-mount warning is a documented, justified suppression |
 | `dotnet add package … --verbosity quiet` | The flag does not exist in the .NET 10 SDK's new CLI | Dropped it — small, but a reminder that AI CLI invocations need the same skepticism as AI code |
 
+### Cross-model review (a second AI as adversarial reviewer)
+
+With the project finished, I ran it through a *different* model prompted to
+review it "as the interview panel would". Every finding was verified against
+the code before acting — same discipline as section 4, because a reviewing AI
+hallucinates just like a generating one:
+
+| Finding | Verdict after my verification | Action |
+|---|---|---|
+| Startup migration + demo seeding ran in every environment — the only guard was "is this SQL Server?" — contradicting the README's "Development" claim | Confirmed | Wrapped in `app.Environment.IsDevelopment()`; a production host without configuration now fails fast with a clear error instead of silently seeding demo credentials |
+| Dev connection string and JWT signing key lived in `appsettings.json`, while the prompt in this very document demands "no secrets in source" | Confirmed | Moved to `appsettings.Development.json` (local-only demo values); production supplies them via environment variables or a secret store |
+| Duplicate-email race: between the service-level existence check and the insert, a concurrent registration turns the unique-index violation into an unmapped `DbUpdateException` → HTTP 500 | Confirmed — the reviewer suggested merely preparing an answer | Went further, test-first: the repository translates the constraint violation into the same `ConflictException` (409) the service produces, so even the race window answers correctly |
+
 ## 6. Edge cases, authentication, and validation — how they're handled
 
 - **Validation** lives in the Application layer (not just data annotations on DTOs), so

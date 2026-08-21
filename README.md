@@ -82,8 +82,12 @@ docker compose up -d
 dotnet run --project src/Bla.Api
 ```
 
-On startup (Development), the API applies EF Core migrations automatically and seeds
-demo data. Swagger UI: <http://localhost:5000/swagger>.
+On startup — in the Development environment only — the API applies EF Core migrations
+automatically and seeds demo data. Swagger UI: <http://localhost:5000/swagger>.
+
+Local development settings (connection string, JWT signing key) live in
+`appsettings.Development.json`; a production host must supply them via environment
+variables or a secret store, and fails fast at startup if they are missing.
 
 ### 3. Run the frontend
 
