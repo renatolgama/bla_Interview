@@ -125,7 +125,12 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-await MigrateAndSeedAsync(app);
+// Demo seeding exists only to make the exercise easy to evaluate — it must
+// never run in production, where migrations belong to a deploy step.
+if (app.Environment.IsDevelopment())
+{
+    await MigrateAndSeedAsync(app);
+}
 
 app.Run();
 

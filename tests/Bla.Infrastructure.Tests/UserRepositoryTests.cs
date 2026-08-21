@@ -1,3 +1,4 @@
+using Bla.Application.Exceptions;
 using Bla.Domain.Entities;
 using Bla.Infrastructure.Persistence.Repositories;
 using Bla.Infrastructure.Tests.Helpers;
@@ -43,15 +44,17 @@ public class UserRepositoryTests : IDisposable
     }
 
     [Fact]
-    public async Task AddAsync_WithDuplicateEmail_ThrowsDbUpdateException()
+    public async Task AddAsync_WithDuplicateEmail_ThrowsConflict()
     {
         // The unique index is the last line of defense against races that
-        // slip past the service-level check.
+        // slip past the service-level existence check. The repository
+        // translates that violation into the same ConflictException the
+        // service throws, so even the race window answers 409 — never 500.
         await _sut.AddAsync(NewUser("same@example.com"), default);
 
         var act = () => _sut.AddAsync(NewUser("same@example.com"), default);
 
-        await act.Should().ThrowAsync<DbUpdateException>();
+        await act.Should().ThrowAsync<ConflictException>();
     }
 
     [Fact]
