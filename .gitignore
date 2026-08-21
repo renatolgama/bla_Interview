@@ -481,5 +481,4 @@ $RECYCLE.BIN/
 # Vim temporary swap files
 *.swp
 
-# Personal interview prep (local only)
-docs/interview-prep.md
+
