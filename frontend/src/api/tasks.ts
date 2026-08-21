@@ -1,9 +1,16 @@
 import { request } from './client';
-import type { CreateTaskInput, Task, TaskStatus, UpdateTaskInput } from '../types';
+import type { CreateTaskInput, Paged, Task, TaskStatus, UpdateTaskInput } from '../types';
 
-export function listTasks(status?: TaskStatus): Promise<Task[]> {
-  const query = status ? `?status=${status}` : '';
-  return request<Task[]>(`/api/tasks${query}`);
+export function listTasks(
+  status: TaskStatus | undefined,
+  page: number,
+  pageSize: number,
+): Promise<Paged<Task>> {
+  const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+  if (status) {
+    params.set('status', status);
+  }
+  return request<Paged<Task>>(`/api/tasks?${params}`);
 }
 
 export function createTask(input: CreateTaskInput): Promise<Task> {
