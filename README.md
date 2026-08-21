@@ -109,11 +109,12 @@ The demo user comes with five sample tasks. You can also register a new account.
 dotnet test
 ```
 
-84 tests across three suites — Application (45, mocked dependencies),
-Infrastructure (23, EF Core over SQLite in-memory) and Api (16, full HTTP
-pipeline via WebApplicationFactory). Tests never require Docker. The suites
-were written test-first: each layer has a `test(...) (red)` commit that
-predates its `feat(...) (green)` commit.
+102 tests across three suites — Application (50, mocked dependencies),
+Infrastructure (32, EF Core over SQLite in-memory plus the cache decorator)
+and Api (20, full HTTP pipeline via WebApplicationFactory, including rate
+limiting). Tests never require Docker. The suites were written test-first:
+each layer has a `test(...) (red)` commit that predates its
+`feat(...) (green)` commit.
 
 ## API endpoints
 
