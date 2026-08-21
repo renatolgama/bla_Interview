@@ -1,4 +1,5 @@
 using Bla.Api.Extensions;
+using Bla.Application.Contracts.Common;
 using Bla.Application.Contracts.Tasks;
 using Bla.Application.Services;
 using Bla.Domain.Enums;
@@ -15,10 +16,14 @@ namespace Bla.Api.Controllers;
 public sealed class TasksController(ITaskService taskService) : ControllerBase
 {
     [HttpGet]
-    [ProducesResponseType<IReadOnlyList<TaskResponse>>(StatusCodes.Status200OK)]
-    public async Task<ActionResult<IReadOnlyList<TaskResponse>>> GetAll(
-        [FromQuery] TaskItemStatus? status, CancellationToken cancellationToken) =>
-        Ok(await taskService.GetAllAsync(User.GetUserId(), status, cancellationToken));
+    [ProducesResponseType<PagedResponse<TaskResponse>>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<PagedResponse<TaskResponse>>> GetAll(
+        CancellationToken cancellationToken,
+        [FromQuery] TaskItemStatus? status = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 10) =>
+        Ok(await taskService.GetAllAsync(User.GetUserId(), status, page, pageSize, cancellationToken));
 
     [HttpGet("{id:guid}")]
     [ProducesResponseType<TaskResponse>(StatusCodes.Status200OK)]

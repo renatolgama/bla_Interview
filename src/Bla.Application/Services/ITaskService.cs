@@ -1,3 +1,4 @@
+using Bla.Application.Contracts.Common;
 using Bla.Application.Contracts.Tasks;
 using Bla.Domain.Enums;
 
@@ -5,8 +6,9 @@ namespace Bla.Application.Services;
 
 public interface ITaskService
 {
-    Task<IReadOnlyList<TaskResponse>> GetAllAsync(
-        Guid userId, TaskItemStatus? status, CancellationToken cancellationToken);
+    Task<PagedResponse<TaskResponse>> GetAllAsync(
+        Guid userId, TaskItemStatus? status, int page, int pageSize,
+        CancellationToken cancellationToken);
     Task<TaskResponse> GetByIdAsync(
         Guid userId, Guid taskId, CancellationToken cancellationToken);
     Task<TaskResponse> CreateAsync(

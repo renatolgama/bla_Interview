@@ -1,4 +1,5 @@
 using Bla.Application.Abstractions;
+using Bla.Application.Contracts.Common;
 using Bla.Application.Contracts.Tasks;
 using Bla.Application.Exceptions;
 using Bla.Domain.Entities;
@@ -14,12 +15,10 @@ public sealed class TaskService(ITaskRepository taskRepository, IClock clock) : 
     private readonly ITaskRepository _taskRepository = taskRepository;
     private readonly IClock _clock = clock;
 
-    public async Task<IReadOnlyList<TaskResponse>> GetAllAsync(
-        Guid userId, TaskItemStatus? status, CancellationToken cancellationToken)
-    {
-        var tasks = await _taskRepository.GetByUserAsync(userId, status, cancellationToken);
-        return tasks.Select(TaskResponse.FromEntity).ToList();
-    }
+    public Task<PagedResponse<TaskResponse>> GetAllAsync(
+        Guid userId, TaskItemStatus? status, int page, int pageSize,
+        CancellationToken cancellationToken) =>
+        throw new NotImplementedException();
 
     public async Task<TaskResponse> GetByIdAsync(
         Guid userId, Guid taskId, CancellationToken cancellationToken)
