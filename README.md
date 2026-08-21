@@ -39,7 +39,9 @@ Bla.Api  ──►  Bla.Infrastructure  ──►  Bla.Application  ──►  B
   (`ITaskRepository`, `IUserRepository`, `IPasswordHasher`, `ITokenService`, `IClock`)
   that outer layers implement. No EF Core, no ASP.NET types.
 - **Infrastructure** — EF Core `DbContext`, repository implementations, BCrypt hasher,
-  JWT token service, migrations, and demo data seeding.
+  JWT token service, migrations, and demo data seeding. Task list reads go through a
+  read-through cache decorator (60s TTL, invalidated per user on every write) that
+  wraps the EF repository via DI — the Application layer never knows caching exists.
 - **Api** — thin controllers, JWT bearer authentication, global error handling
   (RFC 7807 ProblemDetails), Swagger. Composition root: DI is wired here.
 
