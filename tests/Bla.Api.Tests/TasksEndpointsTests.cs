@@ -4,6 +4,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Bla.Application.Contracts.Auth;
+using Bla.Application.Contracts.Common;
 using Bla.Application.Contracts.Tasks;
 using Bla.Domain.Enums;
 using FluentAssertions;
@@ -80,8 +81,9 @@ public class TasksEndpointsTests(TestWebApplicationFactory factory)
         var fetched = await client.GetFromJsonAsync<TaskResponse>(
             $"/api/tasks/{created!.Id}", JsonOptions);
         fetched!.Id.Should().Be(created.Id);
-        var list = await client.GetFromJsonAsync<List<TaskResponse>>("/api/tasks", JsonOptions);
-        list.Should().ContainSingle(t => t.Id == created.Id);
+        var list = await client.GetFromJsonAsync<PagedResponse<TaskResponse>>(
+            "/api/tasks", JsonOptions);
+        list!.Items.Should().ContainSingle(t => t.Id == created.Id);
 
         // Update
         var update = new UpdateTaskRequest(
@@ -110,11 +112,40 @@ public class TasksEndpointsTests(TestWebApplicationFactory factory)
         await client.PutAsJsonAsync($"/api/tasks/{toFinish!.Id}",
             new UpdateTaskRequest("Finished task", null, TaskItemStatus.Done, null));
 
-        var done = await client.GetFromJsonAsync<List<TaskResponse>>(
+        var done = await client.GetFromJsonAsync<PagedResponse<TaskResponse>>(
             "/api/tasks?status=Done", JsonOptions);
 
-        done.Should().ContainSingle(t => t.Id == toFinish.Id);
-        done.Should().NotContain(t => t.Id == created!.Id);
+        done!.Items.Should().ContainSingle(t => t.Id == toFinish.Id);
+        done.Items.Should().NotContain(t => t.Id == created!.Id);
+    }
+
+    [Fact]
+    public async Task List_ReturnsPagingMetadata()
+    {
+        var client = await CreateAuthenticatedClientAsync("paging@example.com");
+        for (var i = 1; i <= 3; i++)
+        {
+            await client.PostAsJsonAsync("/api/tasks", NewTask($"Task {i}"));
+        }
+
+        var page = await client.GetFromJsonAsync<PagedResponse<TaskResponse>>(
+            "/api/tasks?page=1&pageSize=2", JsonOptions);
+
+        page!.Items.Should().HaveCount(2);
+        page.Page.Should().Be(1);
+        page.PageSize.Should().Be(2);
+        page.TotalCount.Should().Be(3);
+        page.TotalPages.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task List_WithInvalidPage_Returns400()
+    {
+        var client = await CreateAuthenticatedClientAsync("badpage@example.com");
+
+        var response = await client.GetAsync("/api/tasks?page=0");
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
     [Fact]

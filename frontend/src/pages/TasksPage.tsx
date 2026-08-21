@@ -16,7 +16,10 @@ const FILTERS: { value: StatusFilter; label: string }[] = [
 
 export function TasksPage() {
   const { user, logout } = useAuth();
-  const { tasks, filter, setFilter, isLoading, error, create, update, remove } = useTasks();
+  const {
+    tasks, filter, setFilter, page, totalPages, totalCount, setPage,
+    isLoading, error, create, update, remove,
+  } = useTasks();
   const [isCreating, setIsCreating] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -89,17 +92,42 @@ export function TasksPage() {
             {filter === 'All' ? 'No tasks yet. Create your first one!' : 'No tasks with this status.'}
           </p>
         ) : (
-          <section className="task-grid" aria-label="Task list">
-            {tasks.map((task) => (
-              <TaskCard
-                key={task.id}
-                task={task}
-                onEdit={setEditingTask}
-                onDelete={handleDelete}
-                onChangeStatus={handleChangeStatus}
-              />
-            ))}
-          </section>
+          <>
+            <section className="task-grid" aria-label="Task list">
+              {tasks.map((task) => (
+                <TaskCard
+                  key={task.id}
+                  task={task}
+                  onEdit={setEditingTask}
+                  onDelete={handleDelete}
+                  onChangeStatus={handleChangeStatus}
+                />
+              ))}
+            </section>
+            {totalPages > 1 && (
+              <nav className="pagination" aria-label="Task pages">
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-small"
+                  onClick={() => setPage(page - 1)}
+                  disabled={page <= 1}
+                >
+                  ← Previous
+                </button>
+                <span className="pagination-info">
+                  Page {page} of {totalPages} · {totalCount} tasks
+                </span>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-small"
+                  onClick={() => setPage(page + 1)}
+                  disabled={page >= totalPages}
+                >
+                  Next →
+                </button>
+              </nav>
+            )}
+          </>
         )}
       </main>
 

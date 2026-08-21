@@ -32,6 +32,14 @@ export interface UpdateTaskInput extends CreateTaskInput {
   status: TaskStatus;
 }
 
+export interface Paged<T> {
+  items: T[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+}
+
 // RFC 7807 problem details returned by the API on errors.
 export interface Problem {
   status: number;

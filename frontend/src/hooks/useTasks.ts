@@ -5,22 +5,36 @@ import type { CreateTaskInput, Task, TaskStatus, UpdateTaskInput } from '../type
 
 export type StatusFilter = TaskStatus | 'All';
 
+const PAGE_SIZE = 9; // fills the 3-column grid evenly
+
 export function useTasks() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [filter, setFilter] = useState<StatusFilter>('All');
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
-      setTasks(await listTasks(filter === 'All' ? undefined : filter));
+      const data = await listTasks(filter === 'All' ? undefined : filter, page, PAGE_SIZE);
+      // Deleting the last item of the last page leaves the current page
+      // beyond the end: snap back instead of showing an empty page.
+      if (data.items.length === 0 && data.totalPages > 0 && page > data.totalPages) {
+        setPage(data.totalPages);
+        return;
+      }
+      setTasks(data.items);
+      setTotalPages(data.totalPages);
+      setTotalCount(data.totalCount);
       setError(null);
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'Could not load tasks.');
     } finally {
       setIsLoading(false);
     }
-  }, [filter]);
+  }, [filter, page]);
 
   useEffect(() => {
     // Fetch-on-mount/filter-change is an external-system sync; every state
@@ -34,10 +48,16 @@ export function useTasks() {
   const changeFilter = useCallback((next: StatusFilter) => {
     setIsLoading(true);
     setFilter(next);
+    setPage(1);
+  }, []);
+
+  const changePage = useCallback((next: number) => {
+    setIsLoading(true);
+    setPage(next);
   }, []);
 
   // Mutations reload from the server afterwards: it stays the single source
-  // of truth for ordering and filtering.
+  // of truth for ordering, filtering and paging.
   const create = useCallback(
     async (input: CreateTaskInput) => {
       await createTask(input);
@@ -62,5 +82,18 @@ export function useTasks() {
     [load],
   );
 
-  return { tasks, filter, setFilter: changeFilter, isLoading, error, create, update, remove };
+  return {
+    tasks,
+    filter,
+    setFilter: changeFilter,
+    page,
+    totalPages,
+    totalCount,
+    setPage: changePage,
+    isLoading,
+    error,
+    create,
+    update,
+    remove,
+  };
 }

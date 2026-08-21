@@ -247,30 +247,69 @@ public class TaskServiceTests
     // ---------- GetAll ----------
 
     [Fact]
-    public async Task GetAllAsync_ReturnsMappedTasksForUser()
+    public async Task GetAllAsync_ReturnsMappedTasksWithPagingMetadata()
     {
         var tasks = new List<TaskItem>
         {
             TaskBuilder.For(_userId).WithTitle("First").Build(),
             TaskBuilder.For(_userId).WithTitle("Second").WithStatus(TaskItemStatus.Done).Build()
         };
-        _taskRepository.GetByUserAsync(_userId, null, default).Returns(tasks);
+        _taskRepository.GetByUserAsync(_userId, null, 1, 10, default)
+            .Returns(new PagedResult<TaskItem>(tasks, 2));
 
-        var result = await _sut.GetAllAsync(_userId, null, default);
+        var result = await _sut.GetAllAsync(_userId, null, 1, 10, default);
 
-        result.Should().HaveCount(2);
-        result[0].Title.Should().Be("First");
-        result[1].Status.Should().Be(TaskItemStatus.Done);
+        result.Items.Should().HaveCount(2);
+        result.Items[0].Title.Should().Be("First");
+        result.Items[1].Status.Should().Be(TaskItemStatus.Done);
+        result.Page.Should().Be(1);
+        result.PageSize.Should().Be(10);
+        result.TotalCount.Should().Be(2);
+        result.TotalPages.Should().Be(1);
     }
 
     [Fact]
-    public async Task GetAllAsync_ForwardsStatusFilterToRepository()
+    public async Task GetAllAsync_ComputesTotalPagesFromTotalCount()
     {
-        _taskRepository.GetByUserAsync(_userId, TaskItemStatus.Done, default)
-            .Returns(new List<TaskItem>());
+        _taskRepository.GetByUserAsync(_userId, null, 2, 10, default)
+            .Returns(new PagedResult<TaskItem>([TaskBuilder.For(_userId).Build()], 25));
 
-        await _sut.GetAllAsync(_userId, TaskItemStatus.Done, default);
+        var result = await _sut.GetAllAsync(_userId, null, 2, 10, default);
 
-        await _taskRepository.Received(1).GetByUserAsync(_userId, TaskItemStatus.Done, default);
+        result.TotalPages.Should().Be(3); // ceil(25 / 10)
+    }
+
+    [Fact]
+    public async Task GetAllAsync_ForwardsStatusFilterAndPagingToRepository()
+    {
+        _taskRepository.GetByUserAsync(_userId, TaskItemStatus.Done, 3, 20, default)
+            .Returns(new PagedResult<TaskItem>([], 0));
+
+        await _sut.GetAllAsync(_userId, TaskItemStatus.Done, 3, 20, default);
+
+        await _taskRepository.Received(1)
+            .GetByUserAsync(_userId, TaskItemStatus.Done, 3, 20, default);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public async Task GetAllAsync_WithPageBelowOne_ThrowsValidation(int page)
+    {
+        var act = () => _sut.GetAllAsync(_userId, null, page, 10, default);
+
+        (await act.Should().ThrowAsync<ValidationException>())
+            .Which.Field.Should().Be("page");
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(51)]
+    public async Task GetAllAsync_WithPageSizeOutOfRange_ThrowsValidation(int pageSize)
+    {
+        var act = () => _sut.GetAllAsync(_userId, null, 1, pageSize, default);
+
+        (await act.Should().ThrowAsync<ValidationException>())
+            .Which.Field.Should().Be("pageSize");
     }
 }

@@ -85,10 +85,11 @@ public class TaskRepositoryTests : IDisposable
         await _sut.AddAsync(NewTask(title: "Mine"), default);
         await _sut.AddAsync(NewTask(ownerId: _otherUserId, title: "Not mine"), default);
 
-        var result = await _sut.GetByUserAsync(_userId, null, default);
+        var result = await _sut.GetByUserAsync(_userId, null, 1, 10, default);
 
-        result.Should().OnlyContain(t => t.UserId == _userId);
-        result.Should().ContainSingle(t => t.Title == "Mine");
+        result.Items.Should().OnlyContain(t => t.UserId == _userId);
+        result.Items.Should().ContainSingle(t => t.Title == "Mine");
+        result.TotalCount.Should().Be(1);
     }
 
     [Fact]
@@ -97,9 +98,10 @@ public class TaskRepositoryTests : IDisposable
         await _sut.AddAsync(NewTask(title: "Open", status: TaskItemStatus.Todo), default);
         await _sut.AddAsync(NewTask(title: "Finished", status: TaskItemStatus.Done), default);
 
-        var result = await _sut.GetByUserAsync(_userId, TaskItemStatus.Done, default);
+        var result = await _sut.GetByUserAsync(_userId, TaskItemStatus.Done, 1, 10, default);
 
-        result.Should().ContainSingle(t => t.Title == "Finished");
+        result.Items.Should().ContainSingle(t => t.Title == "Finished");
+        result.TotalCount.Should().Be(1);
     }
 
     [Fact]
@@ -108,9 +110,25 @@ public class TaskRepositoryTests : IDisposable
         await _sut.AddAsync(NewTask(title: "Older", createdAt: new DateTime(2026, 8, 1, 0, 0, 0, DateTimeKind.Utc)), default);
         await _sut.AddAsync(NewTask(title: "Newer", createdAt: new DateTime(2026, 8, 15, 0, 0, 0, DateTimeKind.Utc)), default);
 
-        var result = await _sut.GetByUserAsync(_userId, null, default);
+        var result = await _sut.GetByUserAsync(_userId, null, 1, 10, default);
 
-        result.Select(t => t.Title).Should().ContainInOrder("Newer", "Older");
+        result.Items.Select(t => t.Title).Should().ContainInOrder("Newer", "Older");
+    }
+
+    [Fact]
+    public async Task GetByUserAsync_SlicesPagesAndKeepsTotalCount()
+    {
+        await _sut.AddAsync(NewTask(title: "Oldest", createdAt: new DateTime(2026, 8, 1, 0, 0, 0, DateTimeKind.Utc)), default);
+        await _sut.AddAsync(NewTask(title: "Middle", createdAt: new DateTime(2026, 8, 10, 0, 0, 0, DateTimeKind.Utc)), default);
+        await _sut.AddAsync(NewTask(title: "Newest", createdAt: new DateTime(2026, 8, 15, 0, 0, 0, DateTimeKind.Utc)), default);
+
+        var firstPage = await _sut.GetByUserAsync(_userId, null, 1, 2, default);
+        var secondPage = await _sut.GetByUserAsync(_userId, null, 2, 2, default);
+
+        firstPage.Items.Select(t => t.Title).Should().ContainInOrder("Newest", "Middle");
+        firstPage.TotalCount.Should().Be(3);
+        secondPage.Items.Should().ContainSingle(t => t.Title == "Oldest");
+        secondPage.TotalCount.Should().Be(3);
     }
 
     [Fact]

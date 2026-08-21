@@ -128,7 +128,7 @@ predates its `feat(...) (green)` commit.
 
 | Method | Route | Description |
 |---|---|---|
-| GET | `/api/tasks?status=Todo` | List my tasks, optional status filter |
+| GET | `/api/tasks?status=Todo&page=1&pageSize=10` | List my tasks — paged (`items`, `totalCount`, `totalPages`), optional status filter |
 | GET | `/api/tasks/{id}` | Get one of my tasks |
 | POST | `/api/tasks` | Create a task (201 + Location) |
 | PUT | `/api/tasks/{id}` | Update a task |
