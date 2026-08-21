@@ -119,43 +119,55 @@ Why this prompt is shaped this way:
 ## 3. Representative output
 
 The full output is this repository (`src/` and `tests/`). A representative sample — the
-ownership check at the heart of the task service, exactly as generated and reviewed:
+ownership check at the heart of the task service, exactly as it lives in the final code:
 
 ```csharp
 // src/Bla.Application/Services/TaskService.cs (excerpt)
 public async Task<TaskResponse> UpdateAsync(
-    Guid userId, Guid taskId, UpdateTaskRequest request, CancellationToken ct)
+    Guid userId, Guid taskId, UpdateTaskRequest request, CancellationToken cancellationToken)
 {
-    var task = await _taskRepository.GetByIdAsync(taskId, ct);
-
-    // 404 for both "does not exist" and "not yours": never reveal
-    // other users' resource ids.
-    if (task is null || task.UserId != userId)
-        throw new NotFoundException($"Task '{taskId}' was not found.");
+    var task = await GetOwnedTaskAsync(userId, taskId, cancellationToken);
 
     ValidateTitle(request.Title);
+    ValidateDescription(request.Description);
+
     task.Title = request.Title.Trim();
     task.Description = request.Description?.Trim();
     task.Status = request.Status;
     task.DueDate = request.DueDate;
     task.UpdatedAt = _clock.UtcNow;
 
-    await _taskRepository.UpdateAsync(task, ct);
+    await _taskRepository.UpdateAsync(task, cancellationToken);
     return TaskResponse.FromEntity(task);
+}
+
+// 404 for both "does not exist" and "not yours": never reveal
+// other users' resource ids.
+private async Task<TaskItem> GetOwnedTaskAsync(
+    Guid userId, Guid taskId, CancellationToken cancellationToken)
+{
+    var task = await _taskRepository.GetByIdAsync(taskId, cancellationToken);
+    if (task is null || task.UserId != userId)
+    {
+        throw new NotFoundException($"Task '{taskId}' was not found.");
+    }
+
+    return task;
 }
 ```
 
-And the test that was written *before* it, pinning the security behavior:
+And the test that was written *before* it — commit `test(application): … (red)`
+predates `feat(application): … (green)` in the git history — pinning the behavior:
 
 ```csharp
 // tests/Bla.Application.Tests/TaskServiceTests.cs (excerpt)
 [Fact]
 public async Task UpdateAsync_WhenTaskBelongsToAnotherUser_ThrowsNotFound()
 {
-    var task = TaskBuilder.For(ownerId).Build();
+    var task = TaskBuilder.For(_otherUserId).Build();
     _taskRepository.GetByIdAsync(task.Id, default).Returns(task);
 
-    var act = () => _sut.UpdateAsync(attackerId, task.Id, ValidRequest(), default);
+    var act = () => _sut.UpdateAsync(_userId, task.Id, ValidUpdateRequest(), default);
 
     await act.Should().ThrowAsync<NotFoundException>(); // 404, not 403
 }
@@ -188,15 +200,25 @@ junior: never merged unread.
 
 ## 5. Corrections and improvements I made to AI output
 
-Real interventions from this build (updated as the build progresses):
+### At design time (caught while reviewing the plan, before code existed)
 
-| AI produced | Problem | My correction |
+| AI tendency | Problem | My correction |
 |---|---|---|
-| `DateTime.Now` in entity timestamps (early draft) | Server-local time breaks sorting/consistency across timezones | `DateTime.UtcNow` behind an `IClock` abstraction so time is testable |
-| Enum `TaskStatus` for the entity status | Collides with `System.Threading.Tasks.TaskStatus`, forcing qualification everywhere | Renamed to `TaskItemStatus`; entity named `TaskItem` for the same reason |
+| `DateTime.Now` for timestamps | Server-local time breaks sorting/consistency across timezones | `DateTime.UtcNow` behind an `IClock` abstraction so time is testable with a frozen clock |
+| Enum named `TaskStatus`, entity named `Task` | Collide with `System.Threading.Tasks` types, forcing qualification in every async file | Renamed to `TaskItemStatus` / `TaskItem` |
 | Ownership filtering only in the EF query (`Where(t => t.UserId == userId)`) | Correct result, but the rule lives in Infrastructure — untestable as a business rule and easy to forget in a new query | Explicit ownership check in the Application service (defense in depth), pinned by unit test |
-| `FluentAssertions` latest (v8) suggested for tests | v8 moved to a paid commercial license | Pinned v7.x (Apache 2.0) — an informed dependency decision, not just "latest" |
-| Happy-path-only controller tests | Missed the cases that actually break in demos: 401 without token, 400 on invalid body, 404 on foreign task | Required a test per failure mode before accepting the controller as done |
+| `FluentAssertions` at latest (v8) | v8 moved to a paid commercial license | Pinned v7.x (Apache 2.0) — an informed dependency decision, not just "latest" |
+| Happy-path-only endpoint tests | Miss the cases that break in demos: 401 without token, 400 invalid body, 404 foreign task | Required a test per failure mode before accepting the controller as done |
+
+### At build time (real AI output fixed during this implementation)
+
+| AI produced | What actually happened | Fix |
+|---|---|---|
+| Swagger security config using `Microsoft.OpenApi.Models` and `AddSecurityRequirement(new OpenApiSecurityRequirement {...})` | Swashbuckle 10 upgraded to Microsoft.OpenApi 2.x: the `Models` namespace is gone and `AddSecurityRequirement` now takes a document-aware factory. The memorized snippet was for the previous major version — classic training-data drift | Followed the compiler, not the memory: `using Microsoft.OpenApi;` and `AddSecurityRequirement(document => … new OpenApiSecuritySchemeReference("Bearer", document))` |
+| Test factory overriding the database with only `RemoveAll<DbContextOptions<T>>()` before adding SQLite | EF Core 8+ also registers `IDbContextOptionsConfiguration<T>`; both providers ended up registered and every API test failed with "Only a single database provider can be registered" | Also `RemoveAll<IDbContextOptionsConfiguration<BlaDbContext>>()` — found by reading the actual exception, not by guessing |
+| Error middleware setting `Response.ContentType = "application/problem+json"` then calling `WriteAsJsonAsync` | `WriteAsJsonAsync` overwrites the content type with `application/json`. **A failing test caught this** — the assertion on the problem+json media type went red | Pass the content type through the write call itself: `WriteAsJsonAsync(problem, options: null, contentType: "application/problem+json")` |
+| Data-loading hook calling `setIsLoading(true)` synchronously at the top of the effect-invoked function | `react/set-state-in-effect` lint warning (cascading-render hazard) | Restructured: loading starts `true` and is flipped by the event that triggers each refetch; the remaining fetch-on-mount warning is a documented, justified suppression |
+| `dotnet add package … --verbosity quiet` | The flag does not exist in the .NET 10 SDK's new CLI | Dropped it — small, but a reminder that AI CLI invocations need the same skepticism as AI code |
 
 ## 6. Edge cases, authentication, and validation — how they're handled
 

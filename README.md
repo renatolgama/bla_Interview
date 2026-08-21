@@ -18,7 +18,7 @@ JWT authentication, and a React + TypeScript frontend.
 | Data | Entity Framework Core, SQL Server 2022 (Docker) |
 | Auth | Custom JWT (HS256) + BCrypt password hashing |
 | Tests | xUnit, NSubstitute, FluentAssertions, WebApplicationFactory |
-| Frontend | React 18, Vite, TypeScript |
+| Frontend | React 19, Vite, TypeScript |
 
 ## Architecture
 
@@ -104,8 +104,11 @@ The demo user comes with five sample tasks. You can also register a new account.
 dotnet test
 ```
 
-Tests never require Docker: the Application suite mocks its dependencies, and the
-Infrastructure/Api suites run EF Core over SQLite in-memory.
+84 tests across three suites — Application (45, mocked dependencies),
+Infrastructure (23, EF Core over SQLite in-memory) and Api (16, full HTTP
+pipeline via WebApplicationFactory). Tests never require Docker. The suites
+were written test-first: each layer has a `test(...) (red)` commit that
+predates its `feat(...) (green)` commit.
 
 ## API endpoints
 
