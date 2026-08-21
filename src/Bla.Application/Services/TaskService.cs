@@ -11,14 +11,23 @@ public sealed class TaskService(ITaskRepository taskRepository, IClock clock) : 
 {
     private const int TitleMaxLength = 200;
     private const int DescriptionMaxLength = 2000;
+    private const int MaxPageSize = 50;
 
     private readonly ITaskRepository _taskRepository = taskRepository;
     private readonly IClock _clock = clock;
 
-    public Task<PagedResponse<TaskResponse>> GetAllAsync(
+    public async Task<PagedResponse<TaskResponse>> GetAllAsync(
         Guid userId, TaskItemStatus? status, int page, int pageSize,
-        CancellationToken cancellationToken) =>
-        throw new NotImplementedException();
+        CancellationToken cancellationToken)
+    {
+        ValidatePaging(page, pageSize);
+
+        var result = await _taskRepository.GetByUserAsync(
+            userId, status, page, pageSize, cancellationToken);
+        var items = result.Items.Select(TaskResponse.FromEntity).ToList();
+
+        return PagedResponse<TaskResponse>.Create(items, page, pageSize, result.TotalCount);
+    }
 
     public async Task<TaskResponse> GetByIdAsync(
         Guid userId, Guid taskId, CancellationToken cancellationToken)
@@ -85,6 +94,20 @@ public sealed class TaskService(ITaskRepository taskRepository, IClock clock) : 
         }
 
         return task;
+    }
+
+    private static void ValidatePaging(int page, int pageSize)
+    {
+        if (page < 1)
+        {
+            throw new ValidationException("page", "Page must be at least 1.");
+        }
+
+        if (pageSize < 1 || pageSize > MaxPageSize)
+        {
+            throw new ValidationException(
+                "pageSize", $"Page size must be between 1 and {MaxPageSize}.");
+        }
     }
 
     private static void ValidateTitle(string? title)

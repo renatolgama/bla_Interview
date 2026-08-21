@@ -14,10 +14,29 @@ public sealed class TaskRepository(BlaDbContext dbContext) : ITaskRepository
     public Task<TaskItem?> GetByIdAsync(Guid id, CancellationToken cancellationToken) =>
         _dbContext.Tasks.FirstOrDefaultAsync(t => t.Id == id, cancellationToken);
 
-    public Task<PagedResult<TaskItem>> GetByUserAsync(
+    public async Task<PagedResult<TaskItem>> GetByUserAsync(
         Guid userId, TaskItemStatus? status, int page, int pageSize,
-        CancellationToken cancellationToken) =>
-        throw new NotImplementedException();
+        CancellationToken cancellationToken)
+    {
+        var query = _dbContext.Tasks
+            .AsNoTracking()
+            .Where(t => t.UserId == userId);
+
+        if (status.HasValue)
+        {
+            query = query.Where(t => t.Status == status.Value);
+        }
+
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        var items = await query
+            .OrderByDescending(t => t.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return new PagedResult<TaskItem>(items, totalCount);
+    }
 
     public async Task AddAsync(TaskItem task, CancellationToken cancellationToken)
     {
