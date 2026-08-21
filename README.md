@@ -17,11 +17,14 @@ JWT authentication, and a React + TypeScript frontend.
 
 | Layer | Technology |
 |---|---|
-| Backend | .NET 10, ASP.NET Core Web API, C# |
-| Data | Entity Framework Core, SQL Server 2022 (Docker) |
-| Auth | Custom JWT (HS256) + BCrypt password hashing |
+| Backend | .NET 10, ASP.NET Core Web API (MVC controllers), C# |
+| Data | Entity Framework Core, SQL Server 2022 (Docker); SQLite in-memory in tests |
+| Auth & security | Custom JWT (HS256), BCrypt password hashing, rate limiting on login |
+| Caching | In-memory read-through cache decorator (60s TTL, per-user invalidation) |
+| API docs | Swagger (Swashbuckle) with Bearer authorization |
 | Tests | xUnit, NSubstitute, FluentAssertions, WebApplicationFactory |
-| Frontend | React 19, Vite, TypeScript |
+| Frontend | React 19, Vite, TypeScript, React Router |
+| CI | GitHub Actions — backend build + tests, frontend lint + build |
 
 ## Architecture
 
