@@ -4,6 +4,7 @@ using Bla.Application.Contracts.Auth;
 using Bla.Application.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace Bla.Api.Controllers;
 
@@ -25,8 +26,10 @@ public sealed class AuthController(IAuthService authService, IClock clock) : Con
 
     [HttpPost("login")]
     [AllowAnonymous]
+    [EnableRateLimiting("login")]
     [ProducesResponseType<AuthResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<AuthResponse>> Login(
         LoginRequest request, CancellationToken cancellationToken) =>
         Ok(await authService.LoginAsync(request, cancellationToken));
