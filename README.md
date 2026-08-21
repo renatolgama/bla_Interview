@@ -1,5 +1,8 @@
 # BLA Tasks — .NET Technical Interview Exercise
 
+[![Backend CI](https://github.com/renatolgama/bla_Interview/actions/workflows/backend.yml/badge.svg)](https://github.com/renatolgama/bla_Interview/actions/workflows/backend.yml)
+[![Frontend CI](https://github.com/renatolgama/bla_Interview/actions/workflows/frontend.yml/badge.svg)](https://github.com/renatolgama/bla_Interview/actions/workflows/frontend.yml)
+
 A full-stack task management application built for the Ballast Lane .NET Technical
 Interview Exercise: ASP.NET Core Web API with Clean Architecture and TDD, SQL Server,
 JWT authentication, and a React + TypeScript frontend.
